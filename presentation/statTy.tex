@@ -1,0 +1,49 @@
+\documentclass{beamer}
+
+\usepackage[utf8]{inputenc}
+\usepackage{default}
+\usepackage{listings}
+
+\begin{document}
+\begin{frame}{History}
+ \begin{description}
+   \item[1957] Fortran (imperative, very basic static type system)
+   \item[1958] Lisp (functional, dynamicly typed)
+   \item[1958] Algol (imperative, basic static type system)
+   \item[1972] \textbf{Prolog}
+   \item[1973] ML (functional, strong static type system)
+\end{description}
+\end{frame}
+\begin{frame}{Example}
+
+  mylen(0,[]).\newline
+  mylen([$\_|$T], N) :- mylen(T,M), N is M+1.
+
+\end{frame}
+\begin{frame}{Type system}
+$$
+ pred :: \tau \times \tau\times\dots\times\tau 
+ $$ 
+ $$
+ \tau ::= \text{int} \,|\, \text{list} \tau\,|\, pred :: \tau \times \tau\times\dots\times\tau
+ $$
+ \begin{itemize}
+  \item give type annotation to prolog predicates
+  \item check that the definition satifies the given annotation
+  \begin{itemize}
+   \item need to give (unchecked) type annotations to some system predicates
+  \end{itemize}
+ \end{itemize}
+
+ 
+\end{frame}
+\begin{frame}{optional extensions}
+ \begin{itemize}
+  \item Sum types. Eg. option $option\, \alpha ::= none + (some :: \alpha)$, list $[\alpha] ::= [] + (. :: \alpha \times [\alpha])$, ...
+  \item in/out annotations
+ \end{itemize}
+
+\end{frame}
+
+
+\end{document}
