@@ -3,8 +3,7 @@
 
 p(X) :- X = 1.
 p(X, Y) :- X = 1, Y = 1.
-p(X, Y) :- X = 1, Y = 2.
-p(X, Y) :- X = 1, Y = 3.
+p(X, Y) :- X = 2, Y = 1, p(1).
 
 typeannot(X, int) :- integer(X).
 typeannot(p, [int, int]).
@@ -34,19 +33,20 @@ hastype(_Context, A, int) :-
   integer(A), !,
   write("hastype integer"), nl.
 
-hastype(Context, (A,B), _T) :-
+hastype(Context, (A,B), unit) :-
   !,
   write("hastype conjunction"), nl,
-  hastype(Context, A, _T1), hastype(Context, B, _T2).
+  hastype(Context, A, unit), hastype(Context, B, unit).
 
-hastype(Context, (A=B), _T) :-
+hastype(Context, (A=B), unit) :-
   !,
   write("hastype equality"), nl,
   hastype(Context, A, T1), hastype(Context, B, T1).
 
-hastype(Context, A, Ty) :-
+hastype(Context, A, unit) :-
   A =.. [B|Params], atom(B), !,
   write("hastype predicate"), nl,
+  typeannot(B, Ty),
   checkparams(Context, Params, Ty).
 
 zip([], [], _Zs).
@@ -68,7 +68,7 @@ checkrules :-
         (tab(2), write(Head), nl, tab(2), write(Body), nl,
          Head =.. [_|Params],
          initcontext(Params, Ty, Context),
-         write(hastype(Context, Body, _T))
+         hastype(Context, Body, _T)
         )
       )
     )
