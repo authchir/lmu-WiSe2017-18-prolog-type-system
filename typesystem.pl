@@ -3,17 +3,30 @@
 
 p(X) :- X = 1.
 p(X, Y) :- X = 1, Y = 1.
-p(X, Y) :- X = 2, Y = 1, p(1).
+p(X, Y) :- X = 2, Y = 1.
+% p(3,4). fails to check. ?? Should we support this?
+
+mylen(L, Len) :- L = [], Len = 0.
+mylen(L, Len) :- L = [_|T], mylen(T, TLen), Len is TLen + 1.
 
 typeannot(X, int) :- integer(X).
 typeannot(p, [int, int]).
 typeannot(q, [int, int]).
+typeannot(mylen, [list(_A), int]).
+
+new_inst_type_list([], []).
+new_inst_type_list([X|Xs], [Y|Ys]) :- new_inst_type(X, Y), new_inst_type_list(Xs, Ys).
+
+new_inst_type(A, B) :- var(A), !, B = _.
+new_inst_type(int, int).
+new_inst_type(unit, unit).
+new_inst_type(list(A), list(B)) :- new_inst_type(A, B).
 
 context_write(Context, Y, T) :-
   var(Context), !, Context = [(Y, T)| _NewContext].
 
 context_write([(X, T1)|_Context], Y, T2) :-
-  write("context_write found"), nl,
+  write("context_write check found"), nl,
   X == Y, !, T1 = T2.
 
 context_write([(X, _)|Context], Y, T) :-
@@ -43,11 +56,34 @@ hastype(Context, (A=B), unit) :-
   write("hastype equality"), nl,
   hastype(Context, A, T1), hastype(Context, B, T1).
 
+hastype(Context, (A==B), unit) :-
+  !,
+  write("hastype structurall equivaltence"), nl,
+  hastype(Context, A, T1), hastype(Context, B, T1).
+
+hastype(Context, (A is B), unit) :-
+  !,
+  write("hastype 'is' builtin"), nl,
+  hastype(Context, A, int), hastype(Context, B, int).
+
+hastype(Context, (A + B), int) :-
+  !,
+  write("hastype '+' builtin"), nl,
+  hastype(Context, A, int), hastype(Context, B, int).
+
+hastype(_Context, A, Ty) :-
+  A == [], !, Ty = list(_).
+hastype(Context, A, Ty) :-
+  A = [H|T], !, hastype(Context, H, Ty1),
+  hastype(Context, T, Ty), Ty = list(Ty1).
+
 hastype(Context, A, unit) :-
   A =.. [B|Params], atom(B), !,
   write("hastype predicate"), nl,
   typeannot(B, Ty),
-  checkparams(Context, Params, Ty).
+  new_inst_type_list(Ty, Ty2),
+  checkparams(Context, Params, Ty2).
+
 
 zip([], [], _Zs).
 zip([X|Xs], [Y|Ys], [Z|Zs]) :-
