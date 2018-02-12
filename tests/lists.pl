@@ -35,6 +35,6 @@ mylen_multiple_instances :-
   mylen([1,2,3,4,5], 5),
   mylen([_A,_B,_C,_D,_E], 5),
   mylen([[],[],[],[],[]], 5),
-  mylen([mylen([], 0), mylen([], 0)], 2),
+  mylen([mylen([], 0), mylen([], 0)], 2).
   % Mixing types does not type check
   % mylen([0, []], 2).
