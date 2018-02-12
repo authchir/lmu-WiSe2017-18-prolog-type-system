@@ -1,5 +1,13 @@
 :- multifile(typeannot/2).
 
+decltype(mylist(tyvar(_A)), nil, []).
+decltype(mylist(tyvar(A)), cons, [tyvar(A), mylist(tyvar(A))]).
+
+typeannot(mylistLen, [mylist(tyvar(_A)), int]).
+
+mylistLen(nil, 0).
+mylistLen(cons(_, Tail), N) :- mylistLen(Tail, N2), N is N2 + 1.
+
 % System predicates
 
 system_type_annot(=, [tyvar(A), tyvar(A)], unit).
@@ -36,12 +44,11 @@ new_inst_tyvars_list_cxt(Cxt, [In|InS], [Out|OutS]) :-
    new_inst_tyvars_cxt(Cxt, In, Out), 
    new_inst_tyvars_list_cxt(Cxt, InS, OutS).
 
-new_inst_tyvars_cxt(Cxt, tyvar(In), Out) :-
+new_inst_tyvars_cxt(Cxt, tyvar(In), Out) :- !,
   tyvar_cxt_lookup(Cxt, tyvar(In), Out).
-new_inst_tyvars_cxt(_Cxt, int, int).
-new_inst_tyvars_cxt(_Cxt, unit, unit).
-new_inst_tyvars_cxt(Cxt, list(In), list(Out)) :- 
-   new_inst_tyvars_cxt(Cxt, In, Out).
+new_inst_tyvars_cxt(Cxt, In, Out) :-
+  In =.. [P| Args], new_inst_tyvars_list_cxt(Cxt, Args, NArgs),
+  Out =.. [P| NArgs].
 
 tyvar_cxt_lookup(Context, tyvar(In), Out) :-
    var(Context), !, Out = _NewVar,
@@ -79,7 +86,8 @@ hastype(Context, A, Ret) :-
   A =.. [B|Params], (atom(B); B == []), !,
   write("hastype predicate: "), write(B), nl,
   ((typeannot(B, Ty), Ret = unit) ;
-	  system_type_annot(B, Ty, RetV)),
+	  system_type_annot(B, Ty, RetV);
+	  decltype(RetV, B, Ty)),
   write(typeannot(B, Ty)),nl,
   new_inst_tyvars_list(Ty, Ty2),
   new_inst_tyvars(RetV, Ret2),
