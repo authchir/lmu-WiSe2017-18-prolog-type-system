@@ -1,6 +1,6 @@
 % normalize.pl
 
-normalize([Pred|HeadArgs], Body, [Pred|NewHeadArgs], NewBody) :- 
+normalize(HeadArgs, Body, NewHeadArgs, NewBody) :-
    normalize_arg_list(HeadArgs, NewHeadArgs, BLT - BLT, BodyList - NBLT),
    NBLT = Body, NewBody = BodyList.
   
@@ -13,4 +13,4 @@ normalize_arg(Arg, NewArg, BodyList - BLT, BodyList - BLT) :-
    var(Arg), !, Arg = NewArg.
 
 normalize_arg(Arg, NewArg, BodyList - BLT, BodyList - NBLT) :- 
-   NewArg = X, BLT = [(X = Arg)|NBLT].
+   NewArg = X, BLT = (X = Arg, NBLT).
