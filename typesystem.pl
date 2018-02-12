@@ -2,17 +2,26 @@
 
 % System predicates
 
-% Will be handle later
-% p(1).
-
-p(X) :- X = 1.
-p(X, Y) :- X = 1, Y = 1.
-p(X, Y) :- X = 2, Y = 1.
-% p(3,4). fails to check. ?? Should we support this?
-
-typeannot(X, int) :- integer(X).
-typeannot(p, [int, int]).
-typeannot(q, [int, int]).
+system_type_annot(=, [tyvar(A), tyvar(A)], unit).
+system_type_annot(\=, [tyvar(A), tyvar(A)], unit).
+system_type_annot(==, [tyvar(A), tyvar(A)], unit).
+system_type_annot(\==, [tyvar(A), tyvar(A)], unit).
+system_type_annot(!, [], unit).
+system_type_annot(\+, [unit], unit).
+system_type_annot(true, [], unit).
+system_type_annot(fail, [], unit).
+system_type_annot(is, [int, int], unit).
+system_type_annot(+, [int, int], int).
+system_type_annot(-, [int, int], int).
+system_type_annot(*, [int, int], int).
+system_type_annot(/, [int, int], int).
+system_type_annot(<, [int, int], unit).
+system_type_annot(=<, [int, int], unit).
+system_type_annot(>, [int, int], unit).
+system_type_annot(>=, [int, int], unit).
+system_type_annot(',', [unit, unit], unit).
+system_type_annot([], [], list(tyvar(_A))).
+system_type_annot('[|]', [tyvar(A), list(tyvar(A))], list(tyvar(A))).
 
 % tyvar predicate ensure that the definition is not more spezial
 % than die type annotation
@@ -66,55 +75,16 @@ hastype(_Context, A, int) :-
   integer(A), !,
   write("hastype integer"), nl.
 
-hastype(Context, (A,B), unit) :-
-  !,
-  write("hastype conjunction"), nl,
-  hastype(Context, A, unit), hastype(Context, B, unit).
-
-hastype(Context, (A=B), unit) :-
-  !,
-  write("hastype equality"), nl,
-  hastype(Context, A, T1), hastype(Context, B, T1).
-
-hastype(Context, (A==B), unit) :-
-  !,
-  write("hastype structurall equivaltence"), nl,
-  hastype(Context, A, T1), hastype(Context, B, T1).
-
-hastype(_Context, !, unit) :-
-  !,
-  write("hastype '!' builtin"), nl.
-
-hastype(_Context, true, unit) :-
-  !,
-  write("hastype 'true' builtin"), nl.
-
-hastype(Context, (A is B), unit) :-
-  !,
-  write("hastype 'is' builtin"), nl,
-  hastype(Context, A, int), hastype(Context, B, int).
-
-hastype(Context, (A + B), int) :-
-  !,
-  write("hastype '+' builtin"), nl,
-  hastype(Context, A, int), hastype(Context, B, int).
-
-hastype(_Context, A, Ty) :-
-  A == [], !,
-  write("hastype '[]' builtin"), nl,
-  Ty = list(_).
-hastype(Context, A, Ty) :-
-  A = [H|T], !,
-  write("hastype '[.|.]' builtin"), nl,
-  hastype(Context, H, Ty1),
-  hastype(Context, T, Ty), Ty = list(Ty1).
-
-hastype(Context, A, unit) :-
-  A =.. [B|Params], atom(B), !,
+hastype(Context, A, Ret) :-
+  A =.. [B|Params], (atom(B); B == []), !,
   write("hastype predicate: "), write(B), nl,
-  typeannot(B, Ty),
+  ((typeannot(B, Ty), Ret = unit) ;
+	  system_type_annot(B, Ty, RetV)),
   write(typeannot(B, Ty)),nl,
   new_inst_tyvars_list(Ty, Ty2),
+  new_inst_tyvars(RetV, Ret2),
+  write(ret(Ret2)), nl,
+  Ret2 = Ret,
   checkparams(Context, Params, Ty2).
 
 
@@ -134,11 +104,11 @@ checkrules :-
       functor(Head, Id, TyLength),
       forall(
         clause(Head, Body),
-        (tab(2), write(Head), nl, tab(2), write(Body), nl,
+        (write("  Checking "), write(Head), nl,
          Head =.. [_|Params],
          normalize(Params, Body, NParams, NBody),
-         tab(2), write(NParams),nl,
-         tab(2), write(NBody),nl,
+         write("  Params: "), write(NParams),nl,
+         write("  Body: "), write(NBody),nl,
          initcontext(NParams, Ty, Context),
          hastype(Context, NBody, _T)
         )
