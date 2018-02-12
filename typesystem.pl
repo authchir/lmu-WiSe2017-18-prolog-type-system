@@ -1,3 +1,7 @@
+:- multifile(typeannot/2).
+
+% System predicates
+
 % Will be handle later
 % p(1).
 
@@ -6,18 +10,15 @@ p(X, Y) :- X = 1, Y = 1.
 p(X, Y) :- X = 2, Y = 1.
 % p(3,4). fails to check. ?? Should we support this?
 
-mylen(L, Len) :- L = [], Len = 0.
-mylen(L, Len) :- L = [_|T], mylen(T, TLen), Len is TLen + 1.
-
 typeannot(X, int) :- integer(X).
 typeannot(p, [int, int]).
 typeannot(q, [int, int]).
-typeannot(mylen, [list(tyvar(_A)), int]).
 
 % tyvar predicate ensure that the definition is not more spezial
 % than die type annotation
 new_inst_tyvars(InTy, OutTy) :- 
    new_inst_tyvars_list([InTy], [OutTy]).
+
 new_inst_tyvars_list(InTys, OutTys) :- 
    new_inst_tyvars_list_cxt(_, InTys, OutTys).
 
@@ -80,6 +81,14 @@ hastype(Context, (A==B), unit) :-
   write("hastype structurall equivaltence"), nl,
   hastype(Context, A, T1), hastype(Context, B, T1).
 
+hastype(_Context, !, unit) :-
+  !,
+  write("hastype '!' builtin"), nl.
+
+hastype(_Context, true, unit) :-
+  !,
+  write("hastype 'true' builtin"), nl.
+
 hastype(Context, (A is B), unit) :-
   !,
   write("hastype 'is' builtin"), nl,
@@ -91,15 +100,20 @@ hastype(Context, (A + B), int) :-
   hastype(Context, A, int), hastype(Context, B, int).
 
 hastype(_Context, A, Ty) :-
-  A == [], !, Ty = list(_).
+  A == [], !,
+  write("hastype '[]' builtin"), nl,
+  Ty = list(_).
 hastype(Context, A, Ty) :-
-  A = [H|T], !, hastype(Context, H, Ty1),
+  A = [H|T], !,
+  write("hastype '[.|.]' builtin"), nl,
+  hastype(Context, H, Ty1),
   hastype(Context, T, Ty), Ty = list(Ty1).
 
 hastype(Context, A, unit) :-
   A =.. [B|Params], atom(B), !,
-  write("hastype predicate"), nl,
+  write("hastype predicate: "), write(B), nl,
   typeannot(B, Ty),
+  write(typeannot(B, Ty)),nl,
   new_inst_tyvars_list(Ty, Ty2),
   checkparams(Context, Params, Ty2).
 
@@ -122,8 +136,11 @@ checkrules :-
         clause(Head, Body),
         (tab(2), write(Head), nl, tab(2), write(Body), nl,
          Head =.. [_|Params],
-         initcontext(Params, Ty, Context),
-         hastype(Context, Body, _T)
+         normalize(Params, Body, NParams, NBody),
+         tab(2), write(NParams),nl,
+         tab(2), write(NBody),nl,
+         initcontext(NParams, Ty, Context),
+         hastype(Context, NBody, _T)
         )
       )
     )
