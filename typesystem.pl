@@ -1,5 +1,18 @@
 :- multifile(typeannot/2).
 
+decltype(mylist(tyvar(_A)), nil, []).
+decltype(mylist(tyvar(A)), cons, [tyvar(A), mylist(tyvar(A))]).
+
+typeannot(mylistLen, [mylist(tyvar(_A)), int]).
+
+mylistLen(nil, 0).
+mylistLen(cons(_, Tail), N) :- mylistLen(Tail, N2), N is N2 + 1.
+
+system_type(unit).
+system_type(int).
+system_type(tyvar(_)).
+system_type(list(_)).
+
 % System predicates
 
 system_type_annot(=, [tyvar(A), tyvar(A)], unit).
@@ -22,26 +35,42 @@ system_type_annot(>=, [int, int], unit).
 system_type_annot(',', [unit, unit], unit).
 system_type_annot([], [], list(tyvar(_A))).
 system_type_annot('[|]', [tyvar(A), list(tyvar(A))], list(tyvar(A))).
+system_type_annot(length, [list(tyvar(_A)), int], unit).
+
+no_type_redef :- forall(system_type(T), \+decltype(T, _, _)).
+
+def_typeannot_pred(Con, ArgLen) :- typeannot(Con, Args), length(Args, ArgLen).
+
+def_decltype_pred(Con, ArgLen) :- decltype(_, Con, Args), length(Args, ArgLen).
+
+def_system_typeannot_pred(Con, ArgLen) :- system_type_annot(Con, Args, _), length(Args, ArgLen).
+
+no_pred_type_annot_clash :-
+   forall(def_typeannot_pred(Con,ArgLen),
+      (\+def_decltype_pred(Con,ArgLen), \+def_system_typeannot_pred(Con, ArgLen))),
+   forall(def_decltype_pred(Con, ArgLen),
+      (\+def_typeannot_pred(Con, ArgLen), \+def_system_typeannot_pred(Con, ArgLen))),
+   forall(def_system_typeannot_pred(Con, ArgLen),
+      (\+def_typeannot_pred(Con, ArgLen), \+def_decltype_pred(Con, ArgLen))).
 
 % tyvar predicate ensure that the definition is not more spezial
 % than die type annotation
-new_inst_tyvars(InTy, OutTy) :- 
+new_inst_tyvars(InTy, OutTy) :-
    new_inst_tyvars_list([InTy], [OutTy]).
 
-new_inst_tyvars_list(InTys, OutTys) :- 
+new_inst_tyvars_list(InTys, OutTys) :-
    new_inst_tyvars_list_cxt(_, InTys, OutTys).
 
 new_inst_tyvars_list_cxt(_Cxt, [], []).
-new_inst_tyvars_list_cxt(Cxt, [In|InS], [Out|OutS]) :- 
-   new_inst_tyvars_cxt(Cxt, In, Out), 
+new_inst_tyvars_list_cxt(Cxt, [In|InS], [Out|OutS]) :-
+   new_inst_tyvars_cxt(Cxt, In, Out),
    new_inst_tyvars_list_cxt(Cxt, InS, OutS).
 
-new_inst_tyvars_cxt(Cxt, tyvar(In), Out) :-
+new_inst_tyvars_cxt(Cxt, tyvar(In), Out) :- !,
   tyvar_cxt_lookup(Cxt, tyvar(In), Out).
-new_inst_tyvars_cxt(_Cxt, int, int).
-new_inst_tyvars_cxt(_Cxt, unit, unit).
-new_inst_tyvars_cxt(Cxt, list(In), list(Out)) :- 
-   new_inst_tyvars_cxt(Cxt, In, Out).
+new_inst_tyvars_cxt(Cxt, In, Out) :-
+  In =.. [P| Args], new_inst_tyvars_list_cxt(Cxt, Args, NArgs),
+  Out =.. [P| NArgs].
 
 tyvar_cxt_lookup(Context, tyvar(In), Out) :-
    var(Context), !, Out = _NewVar,
@@ -79,7 +108,8 @@ hastype(Context, A, Ret) :-
   A =.. [B|Params], (atom(B); B == []), !,
   write("hastype predicate: "), write(B), nl,
   ((typeannot(B, Ty), Ret = unit) ;
-	  system_type_annot(B, Ty, RetV)),
+          system_type_annot(B, Ty, RetV);
+          decltype(RetV, B, Ty)),
   write(typeannot(B, Ty)),nl,
   new_inst_tyvars_list(Ty, Ty2),
   new_inst_tyvars(RetV, Ret2),
@@ -97,6 +127,8 @@ initcontext(Params, Tys, Context) :-
   zip(Params, Tys, Context).
 
 checkrules :-
+  no_type_redef,
+  no_pred_type_annot_clash,
   forall(
     (typeannot(Id, Ty), atom(Id)),
     (length(Ty, TyLength),
