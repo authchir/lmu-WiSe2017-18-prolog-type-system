@@ -1,4 +1,6 @@
 :- multifile(typeannot/2).
+:- dynamic(is_checking/4).
+:- dynamic(checking_preds/2).
 
 decltype(mylist(tyvar(_A)), nil, []).
 decltype(mylist(tyvar(A)), cons, [tyvar(A), mylist(tyvar(A))]).
@@ -84,7 +86,6 @@ context_write(Context, Y, T) :-
   var(Context), !, Context = [(Y, T)| _NewContext].
 
 context_write([(X, T1)|_Context], Y, T2) :-
-  write("context_write check found"), nl,
   X == Y, !, T1 = T2.
 
 context_write([(X, _)|Context], Y, T) :-
@@ -97,23 +98,19 @@ checkparams(Context, [X|Xs], [Ty|Tys]) :-
 
 hastype(Context, A, T) :-
   var(A), !,
-  write("hastype variable"), nl,
   context_write(Context, A, T).
 
 hastype(_Context, A, int) :-
-  integer(A), !,
-  write("hastype integer"), nl.
+  integer(A), !.
 
 hastype(Context, A, Ret) :-
   A =.. [B|Params], (atom(B); B == []), !,
-  write("hastype predicate: "), write(B), nl,
-  ((typeannot(B, Ty), Ret = unit) ;
+  ((typeannot(B, Ty), RetV = unit) ;
           system_type_annot(B, Ty, RetV);
           decltype(RetV, B, Ty)),
-  write(typeannot(B, Ty)),nl,
   new_inst_tyvars_list(Ty, Ty2),
   new_inst_tyvars(RetV, Ret2),
-  write(ret(Ret2)), nl,
+  set_check_predicate(B, A, Ty, RetV),
   Ret2 = Ret,
   checkparams(Context, Params, Ty2).
 
@@ -131,22 +128,78 @@ checkrules :-
   no_pred_type_annot_clash,
   forall(
     (typeannot(Id, Ty), atom(Id)),
-    (length(Ty, TyLength),
-      prettyprint(Id, Ty),
+    check_type(Id, Ty) ;
+      (write_error, !, fail)
+  ).
+
+check_type(Id, Ty) :-
+  length(Ty, TyLength), prettyprint(Id, Ty),
       functor(Head, Id, TyLength),
       forall(
         clause(Head, Body),
-        (write("  Checking "), write(Head), nl,
-         Head =.. [_|Params],
+        (Head =.. [Pred|Params],
          normalize(Params, Body, NParams, NBody),
-         write("  Params: "), write(NParams),nl,
-         write("  Body: "), write(NBody),nl,
+         NHead =.. [Pred|NParams],
+         set_checking(Head, Body, NHead, NBody),
          initcontext(NParams, Ty, Context),
          hastype(Context, NBody, _T)
         )
-      )
-    )
-  ).
+      ).
+
+write_error :-
+   write("Error while checking: "), nl,
+   is_checking(Head, Body, NHead, NBody),
+   write_rule(Head, Body),
+   write("normalized to"), nl,
+   write_rule(NHead, NBody),
+   retract(checking_preds(CList, EList)),
+   write_checked_path(CList),
+   write_error_path(EList).
+
+write_rule(Head, Body) :-
+   tab(2), write(Head), write(" :- "), nl,
+   tab(5), write(Body), nl.
+
+write_error_path([(Rule, ArgTys, RetTy) | PLT1] - PLT2) :-
+   var(PLT2), !,
+   tab(2), write("Error may be in Rule:"), nl,
+   tab(3), write(Rule), nl,
+   tab(2), write("expected type:"), nl,
+   tab(3), write(ArgTys), write(" -> "), write(RetTy), nl,
+   write_error_path(PLT1 - PLT2).
+
+write_error_path(DL - DL) :-
+   var(DL), !.
+
+write_checked_path([(Rule, _A, _R) | PLT1] - PLT2) :-
+   var(PLT2), !,
+   write("checked: "), write(Rule), nl,
+   write_checked_path(PLT1 - PLT2).
+
+write_checked_path(DL - DL) :-
+   var(DL), !.
+
+cleanup_dynamic :-
+   forall(is_checking(H, B, NH, NB),
+            retract(is_checking(H, B, NH, NB))),
+   forall(checking_preds(CL, EL),
+           retract(checking_preds(CL, EL))),
+   assert(checking_preds(CLT - CLT, ELT - ELT)).
+
+set_checking(Head, Body, NHead, NBody) :-
+   cleanup_dynamic,
+   assert(is_checking(Head, Body, NHead, NBody)).
+
+set_check_predicate(',', _Rule, _ArgTys, _RetTy) :-
+   !,
+   retract(checking_preds(CL - CLT, EL - ELT)),
+   CLT = EL,
+   assert(checking_preds(CL - ELT, NL - NL)).
+
+set_check_predicate(_Pred, Rule, ArgTys, RetTy) :-
+   retract(checking_preds(CL - CLT, EL - ELT)),
+   ELT = [(Rule, ArgTys, RetTy) | NewELT],
+   assert(checking_preds(CL - CLT, EL - NewELT)).
 
 prettyprint(Id, Ty) :-
   write(Id), tab(1), write(:), tab(1), write(Ty), nl.
