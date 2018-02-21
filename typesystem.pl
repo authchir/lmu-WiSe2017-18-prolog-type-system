@@ -1,14 +1,7 @@
 :- multifile(typeannot/2).
+:- multifile(decltype/3).
 :- dynamic(is_checking/4).
 :- dynamic(checking_preds/2).
-
-decltype(mylist(tyvar(_A)), nil, []).
-decltype(mylist(tyvar(A)), cons, [tyvar(A), mylist(tyvar(A))]).
-
-typeannot(mylistLen, [mylist(tyvar(_A)), int]).
-
-mylistLen(nil, 0).
-mylistLen(cons(_, Tail), N) :- mylistLen(Tail, N2), N is N2 + 1.
 
 system_type(unit).
 system_type(int).
