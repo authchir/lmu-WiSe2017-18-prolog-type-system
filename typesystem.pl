@@ -70,6 +70,13 @@ type_annot_clash(Con, ArgLen) :-
    tab(3), write("typeannot, decltype, system_type_annot"), nl,
    !, fail.
 
+no_double_typeannot :-
+   forall((typeannot(Pred, Tys), length(Tys, TyLen)),
+      (\+ (typeannot(Pred, Tys2), length(Tys2, TyLen), Tys \= Tys2)) ;
+       (write("more than one type annotation for "), write(Pred/TyLen), nl,
+       !, fail)
+       ).
+
 % tyvar predicate ensure that the definition is not more spezial
 % than die type annotation
 new_inst_tyvars(InTy, OutTy) :-
@@ -141,6 +148,7 @@ initcontext(Params, Tys, Context) :-
 checkrules :-
   no_type_redef,
   no_pred_type_annot_clash,
+  no_double_typeannot,
   forall(
     (typeannot(Id, Ty), atom(Id)),
     check_type(Id, Ty) ;
