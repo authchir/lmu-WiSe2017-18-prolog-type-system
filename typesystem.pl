@@ -39,7 +39,11 @@ system_type_annot([], [], list(tyvar(_A))).
 system_type_annot('[|]', [tyvar(A), list(tyvar(A))], list(tyvar(A))).
 system_type_annot(length, [list(tyvar(_A)), int], unit).
 
-no_type_redef :- forall(system_type(T), \+decltype(T, _, _)).
+no_type_redef :-
+   forall(system_type(T),
+      ((\+decltype(T, _, _));
+       write("redefined type "), write(T), nl, !, fail)
+   ).
 
 def_typeannot_pred(Con, ArgLen) :- typeannot(Con, Args), length(Args, ArgLen).
 
@@ -49,11 +53,22 @@ def_system_typeannot_pred(Con, ArgLen) :- system_type_annot(Con, Args, _), lengt
 
 no_pred_type_annot_clash :-
    forall(def_typeannot_pred(Con,ArgLen),
-      (\+def_decltype_pred(Con,ArgLen), \+def_system_typeannot_pred(Con, ArgLen))),
+      (\+def_decltype_pred(Con,ArgLen), \+def_system_typeannot_pred(Con, ArgLen)) ;
+       type_annot_clash(Con, ArgLen)
+      ),
    forall(def_decltype_pred(Con, ArgLen),
-      (\+def_typeannot_pred(Con, ArgLen), \+def_system_typeannot_pred(Con, ArgLen))),
+      (\+def_typeannot_pred(Con, ArgLen), \+def_system_typeannot_pred(Con, ArgLen)) ;
+       type_annot_clash(Con, ArgLen)
+      ),
    forall(def_system_typeannot_pred(Con, ArgLen),
-      (\+def_typeannot_pred(Con, ArgLen), \+def_decltype_pred(Con, ArgLen))).
+      (\+def_typeannot_pred(Con, ArgLen), \+def_decltype_pred(Con, ArgLen)) ;
+       type_annot_clash(Con, ArgLen)
+      ).
+
+type_annot_clash(Con, ArgLen) :-
+   write("predicate "), write(Con/ArgLen), write(" defined as more than one of:"), nl,
+   tab(3), write("typeannot, decltype, system_type_annot"), nl,
+   !, fail.
 
 % tyvar predicate ensure that the definition is not more spezial
 % than die type annotation
