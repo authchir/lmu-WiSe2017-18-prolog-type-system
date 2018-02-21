@@ -1,5 +1,5 @@
 :- multifile(typeannot/2).
-:- dynamic(is_checking/4).
+:- dynamic(is_checking/5).
 :- dynamic(checking_preds/2).
 
 decltype(mylist(tyvar(_A)), nil, []).
@@ -189,7 +189,7 @@ check_type(Id, Ty) :-
         (Head =.. [Pred|Params],
          normalize(Params, Body, NParams, NBody),
          NHead =.. [Pred|NParams],
-         set_checking(Head, Body, NHead, NBody),
+         set_checking(Head, Body, Ty, NHead, NBody),
          initcontext(NParams, Ty, Context),
          hastype(Context, NBody, _T)
         )
@@ -197,8 +197,10 @@ check_type(Id, Ty) :-
 
 write_error :-
    write("Error while checking: "), nl,
-   is_checking(Head, Body, NHead, NBody),
+   is_checking(Head, Body, Ty, NHead, NBody),
    write_rule(Head, Body),
+   write("with type: "), nl,
+   tab(3), write(Ty), nl,
    write("normalized to"), nl,
    write_rule(NHead, NBody),
    retract(checking_preds(CList, EList)),
@@ -229,15 +231,15 @@ write_checked_path(DL - DL) :-
    var(DL), !.
 
 cleanup_dynamic :-
-   forall(is_checking(H, B, NH, NB),
-            retract(is_checking(H, B, NH, NB))),
+   forall(is_checking(H, B, T, NH, NB),
+            retract(is_checking(H, B, T, NH, NB))),
    forall(checking_preds(CL, EL),
            retract(checking_preds(CL, EL))),
    assert(checking_preds(CLT - CLT, ELT - ELT)).
 
-set_checking(Head, Body, NHead, NBody) :-
+set_checking(Head, Body, Ty,  NHead, NBody) :-
    cleanup_dynamic,
-   assert(is_checking(Head, Body, NHead, NBody)).
+   assert(is_checking(Head, Body, Ty, NHead, NBody)).
 
 set_check_predicate(',', _Rule, _ArgTys, _RetTy) :-
    !,
