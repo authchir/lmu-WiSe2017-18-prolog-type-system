@@ -77,6 +77,31 @@ no_double_typeannot :-
        !, fail)
        ).
 
+no_wrong_typeannot :-
+  forall(
+    current_predicate(typeannot/N),
+    (N = 2 ; (typeannot_error(
+      typeannot/N,
+      "A type annotation must have two parameters."
+      ),
+      !, fail))),
+  forall(
+    (typeannot(Pred, Tys)),
+    (
+      (atom(Pred) ; (typeannot_error(
+          typeannot(Pred, Tys),
+          "The first argument must be an atom corresponding to the name of a predicate."),
+        !, fail)),
+      (is_list(Tys) ; (typeannot_error(
+          typeannot(Pred, Tys),
+          "The second argument must be a list of parameter types."),
+        !, fail))
+    )).
+
+typeannot_error(TypeAnnot, ErrMsg) :-
+  write("Error on type anotation "), write(TypeAnnot), nl,
+  write(ErrMsg), nl.
+
 % tyvar predicate ensure that the definition is not more spezial
 % than die type annotation
 new_inst_tyvars(InTy, OutTy) :-
@@ -146,6 +171,7 @@ initcontext(Params, Tys, Context) :-
   zip(Params, Tys, Context).
 
 checkrules :-
+  no_wrong_typeannot,
   no_type_redef,
   no_pred_type_annot_clash,
   no_double_typeannot,
@@ -156,7 +182,7 @@ checkrules :-
   ).
 
 check_type(Id, Ty) :-
-  length(Ty, TyLength), prettyprint(Id, Ty),
+  length(Ty, TyLength), %prettyprint(Id, Ty),
       functor(Head, Id, TyLength),
       forall(
         clause(Head, Body),
@@ -225,7 +251,7 @@ set_check_predicate(_Pred, Rule, ArgTys, RetTy) :-
    assert(checking_preds(CL - CLT, EL - NewELT)).
 
 prettyprint(Id, Ty) :-
-  write(Id), tab(1), write(:), tab(1), write(Ty), nl.
+  write(Id), write(" : "), write(Ty), nl.
 
 samelength(XS, YS) :- length(XS, N), length(YS, N).
 
