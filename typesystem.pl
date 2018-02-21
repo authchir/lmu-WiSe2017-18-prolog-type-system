@@ -1,4 +1,5 @@
 :- multifile(typeannot/2).
+:- multifile(decltype/3).
 :- dynamic(is_checking/5).
 :- dynamic(checking_preds/2).
 
