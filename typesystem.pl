@@ -148,12 +148,11 @@ hastype(Context, A, Ret) :-
   ((typeannot(B, Ty), RetV = unit) ;
           system_type_annot(B, Ty, RetV);
           decltype(RetV, B, Ty)),
-  new_inst_tyvars_list(Ty, Ty2),
-  new_inst_tyvars(RetV, Ret2),
+  new_inst_tyvars_list_cxt(Cxt, Ty, Ty2),
+  new_inst_tyvars_cxt(Cxt, RetV, Ret2),
   set_check_predicate(B, A, Ty, RetV),
   Ret2 = Ret,
   checkparams(Context, Params, Ty2).
-
 
 zip([], [], _Zs).
 zip([X|Xs], [Y|Ys], [Z|Zs]) :-
